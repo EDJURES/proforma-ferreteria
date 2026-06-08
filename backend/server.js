@@ -6,6 +6,8 @@ const db = require('./db');
 const app = express();
 app.use(cors());
 app.use(express.json());
+// Ruta de diagnóstico temporal
+app.get('/', (req, res) => res.json({ ok: true, mensaje: 'server.js correcto corriendo', rutas: ['/api/productos', '/api/proformas'] }));
 
 // ---------- PRODUCTOS ----------
 

@@ -64,6 +64,7 @@ const IconPhone = ({ size = 14 }) => (
 export default function App() {
   const [vista, setVista] = useState("nueva"); // "nueva" | "historial"
   const [toast, setToast] = useState("");
+  const [resetKey, setResetKey] = useState(0);
 
   const showToast = (msg) => {
     setToast(msg);
@@ -87,9 +88,10 @@ export default function App() {
         <nav style={S.nav}>
           <button
             className={"navBtn " + (vista === "nueva" ? "navOn" : "")}
-            onClick={() => setVista("nueva")}
+            /*onClick={() => setVista("nueva")}*/
+			onClick={() => { setVista("nueva"); setResetKey(k => k + 1); }}
           >
-            ＋ Nueva Proforma
+           ＋ Nueva Proforma
           </button>
           <button
             className={"navBtn " + (vista === "historial" ? "navOn" : "")}
@@ -101,7 +103,7 @@ export default function App() {
       </header>
 
       {vista === "nueva" ? (
-        <NuevaProforma showToast={showToast} />
+        <NuevaProforma key={resetKey} showToast={showToast} />
       ) : (
         <Historial showToast={showToast} />
       )}

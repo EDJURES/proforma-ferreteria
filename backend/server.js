@@ -112,18 +112,26 @@ app.post('/api/proformas', async (req, res) => {
 // Listar proformas emitidas (con filtros opcionales)
 app.get('/api/proformas', async (req, res) => {
   try {
-    const { desde, hasta, cliente } = req.query;
+    const { desde, hasta, cliente, producto } = req.query;
     const cond = [];
     const params = [];
-    if (desde)  { params.push(desde);  cond.push(`fecha >= $${params.length}`); }
-    if (hasta)  { params.push(hasta);  cond.push(`fecha <= $${params.length}`); }
-    if (cliente){ params.push(`%${cliente}%`); cond.push(`LOWER(cliente_nombre) LIKE LOWER($${params.length})`); }
+    let join = '';
+
+    if (producto) {
+      join = 'INNER JOIN proforma_detalle pd ON pd.proforma_id = p.id';
+      params.push(`%${producto}%`);
+      cond.push(`LOWER(pd.descripcion) LIKE LOWER($${params.length})`);
+    }
+    if (desde)   { params.push(desde);  cond.push(`p.fecha >= $${params.length}`); }
+    if (hasta)   { params.push(hasta);  cond.push(`p.fecha <= $${params.length}`); }
+    if (cliente) { params.push(`%${cliente}%`); cond.push(`LOWER(p.cliente_nombre) LIKE LOWER($${params.length})`); }
+
     const where = cond.length ? `WHERE ${cond.join(' AND ')}` : '';
     const result = await db.query(
-      `SELECT id, numero, cliente_nombre, cliente_ruc, condicion_pago,
-              fecha, total, moneda, creado_en
-       FROM proformas ${where}
-       ORDER BY numero DESC
+      `SELECT DISTINCT p.id, p.numero, p.cliente_nombre, p.cliente_ruc, p.condicion_pago,
+              p.fecha, p.total, p.moneda, p.creado_en
+       FROM proformas p ${join} ${where}
+       ORDER BY p.numero DESC
        LIMIT 200`,
       params
     );

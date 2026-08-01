@@ -44,6 +44,82 @@ function loadScript(src) {
   });
 }
 
+//SE AGREGA UNA MEJORA, AÑADIENDO BOTON "PDF" PARA DESCARGAR DOCUMENTO PDF - 30/07/2026
+
+// Genera el PDF de una proforma a partir de sus datos.
+// data = { numero, fecha, cliente_nombre, cliente_ruc, cliente_direccion,
+//          condicion_pago, validez_dias, items: [{descripcion,cantidad,precio_unitario}] }
+async function generarPDFProforma(data) {
+	  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+	  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
+	  const { jsPDF } = window.jspdf;
+	  const doc = new jsPDF();
+
+	  const subtotal = data.items.reduce(
+		(s, it) => s + Number(it.cantidad || 0) * Number(it.precio_unitario || 0), 0
+	  );
+	  const total = subtotal;
+	  const baseImponible = total / (1 + IGV_RATE);
+	  const igv = total - baseImponible;
+
+	  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(178, 34, 34);
+	  doc.text("COMERCIAL ELIZABETH", 14, 18);
+	  doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(60);
+	  doc.text("VENTA DE ARTÍCULOS DE FERRETERIA EN GENERAL, ACCESORIOS PARA BAÑOS", 14, 24);
+	  doc.text("GRIFERÍAS, FLUXOMETROS DE LAS MARCAS SLOAN, HELVEX, CONEXIONES PARA", 14, 27.5);
+	  doc.text("AGUA Y DESAGUE PVC/CPVC, REPUESTOS NACIONALES E IMPORTADOS", 14, 31);
+	  doc.text("Jr. Lino Cornejo N°242 Stand 115, Lima", 14, 36);
+	  doc.text("Email: elenaespirilla.2505@gmail.com · Celular/YAPE: 955 546 747", 14, 39);
+
+	  doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
+	  doc.text("RUC: 10105765229", 155, 17);
+	  doc.text("PROFORMA", 155, 22);
+	  doc.setFontSize(10); doc.setFont("helvetica", "normal");
+	  doc.text(`N°: ${data.numero}`, 155, 28);
+	  doc.text(`Fecha: ${String(data.fecha).slice(0, 10)}`, 155, 33);
+
+	  let y = 45; doc.setFontSize(9);
+	  doc.text(`Cliente: ${data.cliente_nombre || "-"}`, 14, y);
+	  doc.text(`RUC/DNI: ${data.cliente_ruc || "-"}`, 120, y); y += 5;
+	  doc.text(`Dirección: ${data.cliente_direccion || "-"}`, 14, y); y += 5;
+	  doc.text(`Condición: ${data.condicion_pago || "-"}`, 14, y);
+	  doc.text(`Validez: ${data.validez_dias || "-"} días`, 120, y);
+
+	  const body = data.items.map((it) => [
+		it.cantidad, it.descripcion, peso(it.precio_unitario),
+		peso(Number(it.cantidad) * Number(it.precio_unitario)),
+	  ]);
+
+	  doc.autoTable({
+		startY: y + 6,
+		head: [["CANT.", "DESCRIPCIÓN", "P. UNIT.", "IMPORTE"]],
+		body, theme: "grid",
+		headStyles: { fillColor: [27, 94, 32], textColor: 255, fontSize: 8 },
+		bodyStyles: { fontSize: 8 },
+		columnStyles: { 0: { cellWidth: 16, halign: "center" }, 2: { cellWidth: 28, halign: "right" }, 3: { cellWidth: 28, halign: "right" } },
+	  });
+
+	  let fy = doc.lastAutoTable.finalY + 8; doc.setFontSize(9);
+	  doc.text(`Base imponible:`, 130, fy); doc.text(peso(baseImponible), 196, fy, { align: "right" }); fy += 5;
+	  doc.text(`IGV (18%):`, 130, fy); doc.text(peso(igv), 196, fy, { align: "right" }); fy += 6;
+	  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+	  doc.text(`TOTAL:`, 130, fy); doc.text(peso(total), 196, fy, { align: "right" });
+	  fy += 12; doc.setFont("helvetica", "italic"); doc.setFontSize(8); doc.setTextColor(90);
+	  doc.text("CTA. BCP: 191-37674850-0-02 / INTERBANCARIO: 002-191137674850002-55", 14, fy);
+
+	  let fp = doc.lastAutoTable.finalY + 8; doc.setFontSize(9);
+	  doc.text(`Base imponible:`, 130, fp); doc.text(peso(baseImponible), 196, fp, { align: "right" }); fp += 5;
+	  doc.text(`IGV (18%):`, 130, fp); doc.text(peso(igv), 196, fp, { align: "right" }); fp += 6;
+	  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+	  doc.text(`TOTAL:`, 130, fp); doc.text(peso(total), 196, fp, { align: "right" });
+	  fp += 12; doc.setFont("helvetica", "italic"); doc.setFontSize(8); doc.setTextColor(90);
+	  doc.text("Precios incluido IGV 18% en soles.  —  Gracias por su confianza.", 14, fp + 5);
+
+	  doc.save(`Proforma-${data.numero}.pdf`);
+	  
+}
+//FIN MEJORA BOTON PDF PARA DESCARGAR DOCUMENTO - 30/07/2026
+
 const IconMail = ({ size = 14 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -171,71 +247,24 @@ function NuevaProforma({ showToast }) {
     });
   };
 
-  const exportarPDF = async () => {
-    try {
-      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-
-      doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(178, 34, 34);
-      doc.text("COMERCIAL ELIZABETH", 14, 18);
-      doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(60);
-      doc.text("VENTA DE ARTÍCULOS DE FERRETERIA EN GENERAL, ACCESORIOS PARA BAÑOS", 14, 24);
-	  doc.text("GRIFERÍAS, FLUXOMETROS DE LAS MARCAS SLOAN, HELVEX, CONEXIONES PARA", 14, 27.5);
-	  doc.text("AGUA Y DESAGUE PVC/CPVC, REPUESTOS NACIONALES E IMPORTADOS", 14, 31);
-      doc.text("Jr. Lino Cornejo N°242 Stand 115, Lima", 14, 36);
-      doc.text("Email: elenaespirilla.2505@gmail.com · Celular/YAPE: 955 546 747", 14, 39);
-
-      doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
-      doc.text("RUC: 10105765229", 155, 17);
-	  doc.text("PROFORMA", 155, 22);
-      doc.setFontSize(10); doc.setFont("helvetica", "normal");
-      doc.text(`N°: ${meta.numero}`, 155, 28);
-      doc.text(`Fecha: ${meta.fecha}`, 155, 33);
-
-      let y = 45; doc.setFontSize(9);
-      doc.text(`Cliente: ${cliente.nombre || "-"}`, 14, y);
-      doc.text(`RUC/DNI: ${cliente.ruc || "-"}`, 120, y); y += 5;
-      doc.text(`Dirección: ${cliente.direccion || "-"}`, 14, y); y += 5;
-      doc.text(`Condición: ${meta.condicion}`, 14, y);
-      doc.text(`Validez: ${meta.validez} días`, 120, y);
-
-      const body = items.filter((it) => it.descripcion).map((it) => [
-        it.cantidad, it.descripcion, peso(it.precio_unitario),
-        peso(Number(it.cantidad) * Number(it.precio_unitario)),
-      ]);
-
-      doc.autoTable({
-        startY: y + 6,
-        head: [["CANT.", "DESCRIPCIÓN", "P. UNIT.", "IMPORTE"]],
-        body, theme: "grid",
-        headStyles: { fillColor: [27, 94, 32], textColor: 255, fontSize: 8 },
-        bodyStyles: { fontSize: 8 },
-        columnStyles: { 0: { cellWidth: 16, halign: "center" }, 2: { cellWidth: 28, halign: "right" }, 3: { cellWidth: 28, halign: "right" } },
-      });
-
-      let fy = doc.lastAutoTable.finalY + 8; doc.setFontSize(9);
-      doc.text(`Base imponible:`, 130, fy); doc.text(peso(baseImponible), 196, fy, { align: "right" }); fy += 5;
-      doc.text(`IGV (18%):`, 130, fy); doc.text(peso(igv), 196, fy, { align: "right" }); fy += 6;
-      doc.setFont("helvetica", "bold"); doc.setFontSize(11);
-      doc.text(`TOTAL:`, 130, fy); doc.text(peso(total), 196, fy, { align: "right" });
-      fy += 12; doc.setFont("helvetica", "italic"); doc.setFontSize(8); doc.setTextColor(90);
-	  doc.text("CTA. BCP: 191-37674850-0-02 / INTERBANCARIO: 002-191137674850002-55", 14, fy);
-
-
-      let fp = doc.lastAutoTable.finalY + 8; doc.setFontSize(9);
-      doc.text(`Base imponible:`, 130, fp); doc.text(peso(baseImponible), 196, fp, { align: "right" }); fp += 5;
-      doc.text(`IGV (18%):`, 130, fp); doc.text(peso(igv), 196, fp, { align: "right" }); fp += 6;
-      doc.setFont("helvetica", "bold"); doc.setFontSize(11);
-      doc.text(`TOTAL:`, 130, fp); doc.text(peso(total), 196, fp, { align: "right" });
-      fp += 12; doc.setFont("helvetica", "italic"); doc.setFontSize(8); doc.setTextColor(90);
-      doc.text("Precios incluido IGV 18% en soles.  —  Gracias por su confianza.", 14, fp + 5);
-
-      doc.save(`Proforma-${meta.numero}.pdf`);
-      showToast("PDF generado ✓");
-    } catch (e) { console.error(e); showToast("No se pudo generar el PDF"); }
-  };
+const exportarPDF = async () => {
+  try {
+    await generarPDFProforma({
+      numero: meta.numero,
+      fecha: meta.fecha,
+      cliente_nombre: cliente.nombre,
+      cliente_ruc: cliente.ruc,
+      cliente_direccion: cliente.direccion,
+      condicion_pago: meta.condicion,
+      validez_dias: meta.validez,
+      items: items.filter((it) => it.descripcion),
+    });
+    showToast("PDF generado ✓");
+  } catch (e) {
+    console.error(e);
+    showToast("No se pudo generar el PDF");
+  }
+};
 
   const enviarWhatsApp = () => {
     const lineas = items.filter((it) => it.descripcion).map(
@@ -465,29 +494,45 @@ function ModalProductoNuevo({ onClose, onAgregar, showToast }) {
 // ============================================================
 function Historial({ showToast }) {
   const [lista, setLista] = useState([]);
-  const [filtros, setFiltros] = useState({ desde: "", hasta: "", cliente: "" });
+  const [filtros, setFiltros] = useState({ desde: "", hasta: "", cliente: "", producto: "" });
   const [cargando, setCargando] = useState(false);
   const [detalle, setDetalle] = useState(null);
   const [sinBackend, setSinBackend] = useState(false);
 
-  const cargar = async () => {
-    setCargando(true);
-    const qs = new URLSearchParams();
-    if (filtros.desde) qs.set("desde", filtros.desde);
-    if (filtros.hasta) qs.set("hasta", filtros.hasta);
-    if (filtros.cliente) qs.set("cliente", filtros.cliente);
-    try {
-      const r = await fetch(`${API_BASE}/proformas?${qs.toString()}`);
-      if (!r.ok) throw new Error();
-      setLista(await r.json());
-      setSinBackend(false);
-    } catch {
-      setSinBackend(true);
-      setLista([]);
-    } finally {
-      setCargando(false);
-    }
-  };
+
+//NUEVA MEJORA - AGREGANDO EL BOTON PDF EN EL HISTORIAL - 30/07/26
+const descargarPDF = async (id) => {
+  try {
+    const r = await fetch(`${API_BASE}/proformas/${id}`);
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    await generarPDFProforma(data);
+    showToast("PDF generado ✓");
+  } catch {
+    showToast("No se pudo generar el PDF de esta proforma");
+  }
+};
+//FIN - NUEVA MEJORA AGREGANDO EL BOTON PDF EN EL HISTORIAL - 30/07/26
+
+const cargar = async () => {
+  setCargando(true);
+  const qs = new URLSearchParams();
+  if (filtros.desde) qs.set("desde", filtros.desde);
+  if (filtros.hasta) qs.set("hasta", filtros.hasta);
+  if (filtros.cliente) qs.set("cliente", filtros.cliente);
+  if (filtros.producto) qs.set("producto", filtros.producto);   // ← nueva línea
+  try {
+    const r = await fetch(`${API_BASE}/proformas?${qs.toString()}`);
+    if (!r.ok) throw new Error();
+    setLista(await r.json());
+    setSinBackend(false);
+  } catch {
+    setSinBackend(true);
+    setLista([]);
+  } finally {
+    setCargando(false);
+  }
+};
 
   useEffect(() => { cargar(); }, []);
 
@@ -503,18 +548,21 @@ function Historial({ showToast }) {
     <main style={S.card}>
       <h2 style={S.h2}>Proformas emitidas</h2>
 
-      <section style={S.filtros}>
-        <Field label="Desde">
-          <input className="inp" type="date" value={filtros.desde} onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })} />
-        </Field>
-        <Field label="Hasta">
-          <input className="inp" type="date" value={filtros.hasta} onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })} />
-        </Field>
-        <Field label="Cliente">
-          <input className="inp" placeholder="Buscar por nombre…" value={filtros.cliente} onChange={(e) => setFiltros({ ...filtros, cliente: e.target.value })} />
-        </Field>
-        <button className="btn btnSave" style={{ alignSelf: "end", flex: "none" }} onClick={cargar}>🔍 Buscar</button>
-      </section>
+<section style={S.filtros}>
+  <Field label="Desde">
+    <input className="inp" type="date" value={filtros.desde} onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })} />
+  </Field>
+  <Field label="Hasta">
+    <input className="inp" type="date" value={filtros.hasta} onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })} />
+  </Field>
+  <Field label="Cliente">
+    <input className="inp" placeholder="Buscar por nombre…" value={filtros.cliente} onChange={(e) => setFiltros({ ...filtros, cliente: e.target.value })} />
+  </Field>
+  <Field label="Producto">
+    <input className="inp" placeholder="Buscar por producto…" value={filtros.producto} onChange={(e) => setFiltros({ ...filtros, producto: e.target.value })} />
+  </Field>
+  <button className="btn btnSave" style={{ alignSelf: "end", flex: "none" }} onClick={cargar}>🔍 Buscar</button>
+</section>
 
       {sinBackend && (
         <div style={S.aviso}>No se pudo conectar al backend. Inicia la API para consultar el historial.</div>
@@ -527,7 +575,7 @@ function Historial({ showToast }) {
           <div style={{ flex: 1 }}>Cliente</div>
           <div style={{ width: 110 }}>Condición</div>
           <div style={{ width: 120, textAlign: "right" }}>Total</div>
-          <div style={{ width: 80 }} />
+		  <div style={{ width: 150 }}></div>
         </div>
 
         {cargando ? (
@@ -542,9 +590,10 @@ function Historial({ showToast }) {
               <div style={{ flex: 1 }}>{p.cliente_nombre}</div>
               <div style={{ width: 110 }}>{p.condicion_pago}</div>
               <div style={{ width: 120, textAlign: "right", fontWeight: 600 }}>{peso(p.total)}</div>
-              <div style={{ width: 80 }}>
-                <button className="btnVer" onClick={() => verDetalle(p.id)}>Ver</button>
-              </div>
+				<div style={{ width: 150, display: "flex", gap: 6 }}>
+				  <button className="btnVer" onClick={() => verDetalle(p.id)}>Ver</button>
+				  <button className="btnPdfMini" onClick={() => descargarPDF(p.id)}>PDF</button>
+				</div>
             </div>
           ))
         )}
@@ -686,7 +735,7 @@ const S = {
   modalBody: { padding: 22, display: "flex", flexDirection: "column", gap: 14 },
   modalFoot: { display: "flex", gap: 12, padding: "16px 22px", borderTop: "1px solid #eee", justifyContent: "flex-end" },
   check: { display: "flex", gap: 9, alignItems: "flex-start", fontSize: 13, color: "#555", background: "#f7f5ef", padding: 12, borderRadius: 8, cursor: "pointer" },
-  filtros: { display: "flex", gap: 14, marginBottom: 18, flexWrap: "wrap", alignItems: "end" },
+  filtros: { display: "flex", gap: 9, marginBottom: 18, flexWrap: "wrap", alignItems: "end" },
   aviso: { background: "#fbeaea", color: "#b22222", padding: 12, borderRadius: 8, fontSize: 13, marginBottom: 14 },
   tablaHist: { border: "1px solid #eee", borderRadius: 10, overflow: "hidden" },
   histHead: { display: "flex", gap: 10, padding: "11px 12px", background: "#1b5e20", color: "#fff", fontSize: 12, fontWeight: 700, textTransform: "uppercase" },
@@ -716,6 +765,8 @@ const CSS = `
 .btnDel:hover { background:#f5d5d5; }
 .btnVer { background:#1b5e20; color:#fff; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px; }
 .btnVer:hover { filter:brightness(1.1); }
+.btnPdfMini { background:#A32D2D; color:#fff; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-size:13px; }
+.btnPdfMini:hover { filter:brightness(1.1); }
 .navBtn { background:#fff; border:1px solid #d9d3c5; color:#555; padding:10px 16px; border-radius:9px; font-weight:700; cursor:pointer; font-family:inherit; font-size:14px; }
 .navBtn:hover { border-color:#1b5e20; }
 .navOn { background:#1b5e20; color:#fff; border-color:#1b5e20; }

@@ -11,7 +11,7 @@ import React, { useState, useEffect, useRef } from "react";
 //  - Exporta a PDF (jsPDF + autoTable por CDN) y envía a WhatsApp.
 // ============================================================
 
-const API_BASE = "http://localhost:4000/api";
+const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:4000") + "/api";
 const IGV_RATE = 0.18;
 
 const CATALOGO_DEMO = [
@@ -44,9 +44,91 @@ function loadScript(src) {
   });
 }
 
+//SE AGREGA UNA MEJORA, AÑADIENDO BOTON "PDF" PARA DESCARGAR DOCUMENTO PDF - 30/07/2026
+
+// Genera el PDF de una proforma a partir de sus datos.
+// data = { numero, fecha, cliente_nombre, cliente_ruc, cliente_direccion,
+//          condicion_pago, validez_dias, items: [{descripcion,cantidad,precio_unitario}] }
+async function generarPDFProforma(data) {
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const subtotal = data.items.reduce(
+    (s, it) => s + Number(it.cantidad || 0) * Number(it.precio_unitario || 0), 0
+  );
+  const total = subtotal;
+  const baseImponible = total / (1 + IGV_RATE);
+  const igv = total - baseImponible;
+
+  doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(178, 34, 34);
+  doc.text("COMERCIAL ELIZABETH", 14, 18);
+  doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(60);
+  doc.text("Ferretería e Herramientas", 14, 24);
+  doc.text("Jr. Azángaro 976 - Lima", 14, 29);
+  doc.text("Telf. 426-0999  Cel. 908 937 763", 14, 34);
+
+  doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
+  doc.text("PROFORMA", 150, 18);
+  doc.setFontSize(10); doc.setFont("helvetica", "normal");
+  doc.text(`N°: ${data.numero}`, 150, 25);
+  doc.text(`Fecha: ${String(data.fecha).slice(0, 10)}`, 150, 30);
+
+  let y = 44; doc.setFontSize(9);
+  doc.text(`Cliente: ${data.cliente_nombre || "-"}`, 14, y);
+  doc.text(`RUC/DNI: ${data.cliente_ruc || "-"}`, 120, y); y += 5;
+  doc.text(`Dirección: ${data.cliente_direccion || "-"}`, 14, y); y += 5;
+  doc.text(`Condición: ${data.condicion_pago || "-"}`, 14, y);
+  doc.text(`Validez: ${data.validez_dias || "-"} días`, 120, y);
+
+  const body = data.items.map((it) => [
+    it.cantidad, it.descripcion, peso(it.precio_unitario),
+    peso(Number(it.cantidad) * Number(it.precio_unitario)),
+  ]);
+
+  doc.autoTable({
+    startY: y + 6,
+    head: [["CANT.", "DESCRIPCIÓN", "P. UNIT.", "IMPORTE"]],
+    body, theme: "grid",
+    headStyles: { fillColor: [27, 94, 32], textColor: 255, fontSize: 8 },
+    bodyStyles: { fontSize: 8 },
+    columnStyles: { 0: { cellWidth: 16, halign: "center" }, 2: { cellWidth: 28, halign: "right" }, 3: { cellWidth: 28, halign: "right" } },
+  });
+
+  let fy = doc.lastAutoTable.finalY + 8; doc.setFontSize(9);
+  doc.text(`Base imponible:`, 130, fy); doc.text(peso(baseImponible), 196, fy, { align: "right" }); fy += 5;
+  doc.text(`IGV (18%):`, 130, fy); doc.text(peso(igv), 196, fy, { align: "right" }); fy += 6;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+  doc.text(`TOTAL:`, 130, fy); doc.text(peso(total), 196, fy, { align: "right" });
+  fy += 12; doc.setFont("helvetica", "italic"); doc.setFontSize(8); doc.setTextColor(90);
+  doc.text("Precios incluido IGV 18% en soles.  —  Gracias por su confianza.", 14, fy);
+
+  doc.save(`Proforma-${data.numero}.pdf`);
+}
+//FIN MEJORA BOTON PDF PARA DESCARGAR DOCUMENTO - 30/07/2026
+
+const IconMail = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+    style={{ verticalAlign: "-2px", marginRight: 4 }}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="m3 7 9 6 9-6" />
+  </svg>
+);
+
+const IconPhone = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+    style={{ verticalAlign: "-2px", marginRight: 4 }}>
+    <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L20 13l2 5v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" />
+  </svg>
+);
+
 export default function App() {
   const [vista, setVista] = useState("nueva"); // "nueva" | "historial"
   const [toast, setToast] = useState("");
+  const [resetKey, setResetKey] = useState(0);
 
   const showToast = (msg) => {
     setToast(msg);
@@ -60,14 +142,20 @@ export default function App() {
       <header style={S.header}>
         <div>
           <h1 style={S.logo}>COMERCIAL ELIZABETH</h1>
-          <p style={S.sub}>Ferretería y Herramientas · Jr. Azángaro 976, Lima</p>
+          <p style={S.sub}>Ferretería y Herramientas · Jr. Lino Cornejo N°242 Stand 115, Lima</p>
+		  <p style={S.sub}>
+			<IconMail size={13} /> elenaespirilla.2505@gmail.com
+			&nbsp;·&nbsp;
+			<IconPhone size={13} /> Celular: 955 546 747
+		  </p>
         </div>
         <nav style={S.nav}>
           <button
             className={"navBtn " + (vista === "nueva" ? "navOn" : "")}
-            onClick={() => setVista("nueva")}
+            /*onClick={() => setVista("nueva")}*/
+			onClick={() => { setVista("nueva"); setResetKey(k => k + 1); }}
           >
-            ＋ Nueva Proforma
+           ＋ Nueva Proforma
           </button>
           <button
             className={"navBtn " + (vista === "historial" ? "navOn" : "")}
@@ -79,7 +167,7 @@ export default function App() {
       </header>
 
       {vista === "nueva" ? (
-        <NuevaProforma showToast={showToast} />
+        <NuevaProforma key={resetKey} showToast={showToast} />
       ) : (
         <Historial showToast={showToast} />
       )}
@@ -157,17 +245,20 @@ function NuevaProforma({ showToast }) {
       doc.setFontSize(20); doc.setFont("helvetica", "bold"); doc.setTextColor(178, 34, 34);
       doc.text("COMERCIAL ELIZABETH", 14, 18);
       doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(60);
-      doc.text("Ferretería e Herramientas", 14, 24);
-      doc.text("Jr. Azángaro 976 - Lima", 14, 29);
-      doc.text("Telf. 426-0999  Cel. 908 937 763", 14, 34);
+      doc.text("VENTA DE ARTÍCULOS DE FERRETERIA EN GENERAL, ACCESORIOS PARA BAÑOS", 14, 24);
+	  doc.text("GRIFERÍAS, FLUXOMETROS DE LAS MARCAS SLOAN, HELVEX, CONEXIONES PARA", 14, 27.5);
+	  doc.text("AGUA Y DESAGUE PVC/CPVC, REPUESTOS NACIONALES E IMPORTADOS", 14, 31);
+      doc.text("Jr. Lino Cornejo N°242 Stand 115, Lima", 14, 36);
+      doc.text("Email: elenaespirilla.2505@gmail.com · Celular/YAPE: 955 546 747", 14, 39);
 
       doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
-      doc.text("PROFORMA", 150, 18);
+      doc.text("RUC: 10105765229", 155, 17);
+	  doc.text("PROFORMA", 155, 22);
       doc.setFontSize(10); doc.setFont("helvetica", "normal");
-      doc.text(`N°: ${meta.numero}`, 150, 25);
-      doc.text(`Fecha: ${meta.fecha}`, 150, 30);
+      doc.text(`N°: ${meta.numero}`, 155, 28);
+      doc.text(`Fecha: ${meta.fecha}`, 155, 33);
 
-      let y = 44; doc.setFontSize(9);
+      let y = 45; doc.setFontSize(9);
       doc.text(`Cliente: ${cliente.nombre || "-"}`, 14, y);
       doc.text(`RUC/DNI: ${cliente.ruc || "-"}`, 120, y); y += 5;
       doc.text(`Dirección: ${cliente.direccion || "-"}`, 14, y); y += 5;
@@ -194,7 +285,16 @@ function NuevaProforma({ showToast }) {
       doc.setFont("helvetica", "bold"); doc.setFontSize(11);
       doc.text(`TOTAL:`, 130, fy); doc.text(peso(total), 196, fy, { align: "right" });
       fy += 12; doc.setFont("helvetica", "italic"); doc.setFontSize(8); doc.setTextColor(90);
-      doc.text("Precios incluido IGV 18% en soles.  —  Gracias por su confianza.", 14, fy);
+	  doc.text("CTA. BCP: 191-37674850-0-02 / INTERBANCARIO: 002-191137674850002-55", 14, fy);
+
+
+      let fp = doc.lastAutoTable.finalY + 8; doc.setFontSize(9);
+      doc.text(`Base imponible:`, 130, fp); doc.text(peso(baseImponible), 196, fp, { align: "right" }); fp += 5;
+      doc.text(`IGV (18%):`, 130, fp); doc.text(peso(igv), 196, fp, { align: "right" }); fp += 6;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11);
+      doc.text(`TOTAL:`, 130, fp); doc.text(peso(total), 196, fp, { align: "right" });
+      fp += 12; doc.setFont("helvetica", "italic"); doc.setFontSize(8); doc.setTextColor(90);
+      doc.text("Precios incluido IGV 18% en soles.  —  Gracias por su confianza.", 14, fp + 5);
 
       doc.save(`Proforma-${meta.numero}.pdf`);
       showToast("PDF generado ✓");

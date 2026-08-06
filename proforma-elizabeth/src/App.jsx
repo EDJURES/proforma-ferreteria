@@ -303,6 +303,93 @@ const exportarPDF = async () => {
       showToast(`Proforma N° ${meta.numero} guardada ✓`);
     } catch { showToast("No se pudo conectar al backend"); }
   };
+  
+  
+//Autocompletar/sugerir nombre de cliente 
+const [sugCliente, setSugCliente] = useState([]);
+const [openCliente, setOpenCliente] = useState(false);
+const clienteBoxRef = useRef(null);
+
+const buscarClientePorNombre = async (texto) => {
+  setCliente((c) => ({ ...c, nombre: texto.toUpperCase() }));
+  if (!texto || texto.length < 2) { setSugCliente([]); setOpenCliente(false); return; }
+  try {
+    const r = await fetch(`${API_BASE}/clientes/buscar?q=${encodeURIComponent(texto)}`);
+    if (!r.ok) throw new Error();
+    setSugCliente(await r.json());
+  } catch {
+    setSugCliente([]);
+  }
+  setOpenCliente(true);
+};
+
+const elegirCliente = (c) => {
+  setCliente({
+    nombre: (c.nombre || "").toUpperCase(),
+    ruc: c.ruc_dni || "",
+    direccion: (c.direccion || "").toUpperCase(),
+    telefono: c.telefono || "",
+  });
+  setOpenCliente(false);
+};
+
+useEffect(() => {
+  const h = (e) => clienteBoxRef.current && !clienteBoxRef.current.contains(e.target) && setOpenCliente(false);
+  document.addEventListener("mousedown", h);
+  return () => document.removeEventListener("mousedown", h);
+}, []);
+
+//Fin - Autocompletar/sugerir nombre de cliente  
+  
+const buscarDocumento = async (numero) => {
+  const limpio = (numero || "").trim();
+  if (!limpio) return;
+
+  const esDni = /^\d{8}$/.test(limpio);
+  const esRuc = /^\d{11}$/.test(limpio);
+  if (!esDni && !esRuc) return;
+
+  // 1) Primero busca en tu propia base de datos (Neon), sin gastar cuota externa
+  try {
+    const rLocal = await fetch(`${API_BASE}/clientes/ruc/${limpio}`);
+    if (rLocal.ok) {
+      const c = await rLocal.json();
+      setCliente((prev) => ({
+        ...prev,
+        nombre: (c.nombre || prev.nombre).toUpperCase(),
+        direccion: (c.direccion || prev.direccion).toUpperCase(),
+        telefono: c.telefono || prev.telefono,
+      }));
+      showToast("Cliente encontrado ya registrado ✓");
+      return;
+    }
+  } catch {
+    // si la consulta local falla, seguimos igual con la API externa
+  }
+
+  if (esDni) {
+    showToast("Para DNI ingresa los datos manualmente.");
+    return;
+  }
+
+  // 2) No estaba guardado localmente: consulta la API externa de RUC
+  try {
+    const r = await fetch(`${API_BASE}/consulta-documento/${limpio}`);
+    const data = await r.json();
+    if (!r.ok) {
+      showToast(data.error || "Error no se pudo consultar el documento");
+      return;
+    }
+    setCliente((c) => ({
+      ...c,
+      nombre: (data.nombre || c.nombre).toUpperCase(),
+      direccion: (data.direccion || c.direccion).toUpperCase(),
+    }));
+    showToast("RUC encontrado ✓");
+  } catch {
+    showToast("Esta fallando el servicio de consulta");
+  }
+};
 
   return (
     <main style={S.card}>
@@ -324,14 +411,42 @@ const exportarPDF = async () => {
       </section>
 
       <section style={S.gridCli}>
-        <Field label="Nombre / Razón social">
-          <input className="inp" value={cliente.nombre} placeholder="Ej. ESPIRILLA FOLLANE ELEUTERIA" onChange={(e) => setCliente({ ...cliente, nombre: e.target.value })} />
-        </Field>
-        <Field label="RUC / DNI">
-          <input className="inp" value={cliente.ruc} onChange={(e) => setCliente({ ...cliente, ruc: e.target.value })} />
-        </Field>
+		<div style={{ position: "relative" }} ref={clienteBoxRef}>
+		  <Field label="Nombre / Razón social">
+			<input
+			  className="inp"
+			  value={cliente.nombre}
+			  onChange={(e) => buscarClientePorNombre(e.target.value)}
+			  onFocus={() => cliente.nombre && buscarClientePorNombre(cliente.nombre)}
+			/>
+		  </Field>
+		  {openCliente && sugCliente.length > 0 && (
+			<div style={S.dropdown}>
+			  {sugCliente.map((c) => (
+				<div key={c.id} style={S.option} onMouseDown={() => elegirCliente(c)}>
+				  <span style={{ fontWeight: 600 }}>{c.nombre}</span>
+				  <span style={S.optMeta}>{c.ruc_dni || "sin RUC"}{c.direccion ? " · " + c.direccion : ""}</span>
+				</div>
+			  ))}
+			</div>
+		  )}
+		</div>
+		<Field label="RUC / DNI">
+			<input
+			  className="inp"
+			  value={cliente.ruc}
+			  maxLength={11}
+			  inputMode="numeric"
+			  onChange={(e) => {
+				const soloNumeros = e.target.value.replace(/\D/g, "").slice(0, 11);
+				setCliente({ ...cliente, ruc: soloNumeros });
+			  }}
+			  onKeyDown={(e) => { if (e.key === "Tab") buscarDocumento(cliente.ruc); }}
+			  onBlur={() => buscarDocumento(cliente.ruc)}
+			/>
+		</Field>
         <Field label="Dirección">
-          <input className="inp" value={cliente.direccion} onChange={(e) => setCliente({ ...cliente, direccion: e.target.value })} />
+          <input className="inp" value={cliente.direccion} onChange={(e) => setCliente({ ...cliente, direccion: e.target.value.toUpperCase() })} />
         </Field>
         <Field label="Teléfono (WhatsApp)">
           <input className="inp" value={cliente.telefono} placeholder="9XXXXXXXX" onChange={(e) => setCliente({ ...cliente, telefono: e.target.value })} />

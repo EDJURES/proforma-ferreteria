@@ -59,7 +59,3 @@ Endpoints:
 - **Proformas Emitidas** (pestaña superior): consulta el historial de
   proformas a la fecha, con filtros por rango de fechas y por cliente, y
   permite abrir el detalle completo de cada una.
-
-## Nota sobre IGV
-Según la proforma guía, los precios **ya incluyen IGV 18%**. El sistema
-calcula la base imponible y el IGV a partir del total.

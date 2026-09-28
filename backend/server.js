@@ -5,7 +5,21 @@ const db = require('./db');
 
 const app = express();
 //app.use(cors());
-app.use(cors({ origin: "https://proforma-ferreteria.vercel.app" }));
+const origenesPermitidos = [
+  "http://localhost:5173",
+  "https://proforma-ferreteria.vercel.app",
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Permite peticiones sin origin (como Postman o curl) y las de la lista
+    if (!origin || origenesPermitidos.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("No permitido por CORS"));
+    }
+  },
+}));
 app.use(express.json());
 // Ruta de diagnóstico temporal
 app.get('/', (req, res) => res.json({ ok: true, mensaje: 'server.js correcto corriendo', rutas: ['/api/productos', '/api/proformas'] }));
@@ -180,16 +194,16 @@ app.post('/api/proformas', async (req, res) => {
       }
     }
 
-    const cab = await client.query(
-      `INSERT INTO proformas
-        (numero, cliente_id, cliente_nombre, cliente_ruc, cliente_direccion, cliente_telefono,
-         condicion_pago, validez_dias, fecha, subtotal, igv, total, moneda, observaciones)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-       RETURNING id`,
-      [p.numero, clienteId, p.cliente_nombre, p.cliente_ruc, p.cliente_direccion, p.cliente_telefono,
-       p.condicion_pago || 'CONTADO', p.validez_dias || 6, p.fecha || new Date(),
-       p.subtotal, p.igv, p.total, p.moneda || 'SOLES', p.observaciones]
-    );
+	const cab = await client.query(
+	  `INSERT INTO proformas
+		(numero, cliente_id, cliente_nombre, cliente_ruc, cliente_direccion, cliente_telefono, solicitante,
+		 condicion_pago, validez_dias, fecha, subtotal, igv, total, moneda, observaciones)
+	   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+	   RETURNING id`,
+	  [p.numero, clienteId, p.cliente_nombre, p.cliente_ruc, p.cliente_direccion, p.cliente_telefono, p.solicitante || null,
+	   p.condicion_pago || 'CONTADO', p.validez_dias || 6, p.fecha || new Date(),
+	   p.subtotal, p.igv, p.total, p.moneda || 'SOLES', p.observaciones]
+	);
     const proformaId = cab.rows[0].id;
 
     for (let i = 0; i < p.items.length; i++) {

@@ -82,6 +82,12 @@ async function generarPDFProforma(data) {
 	  doc.text(`Cliente: ${data.cliente_nombre || "-"}`, 14, y);
 	  doc.text(`RUC/DNI: ${data.cliente_ruc || "-"}`, 120, y); y += 5;
 	  doc.text(`Dirección: ${data.cliente_direccion || "-"}`, 14, y); y += 5;
+		if (data.solicitante) {
+		  doc.setFont("helvetica", "bold");
+		  doc.text(`Solicitante: ${data.solicitante}`, 14, y);
+		  doc.setFont("helvetica", "normal");  // restaura la fuente normal para lo que sigue
+		  y += 5;
+		}
 	  doc.text(`Condición: ${data.condicion_pago || "-"}`, 14, y);
 	  doc.text(`Validez: ${data.validez_dias || "-"} días`, 120, y);
 
@@ -193,7 +199,7 @@ export default function App() {
 //  VISTA: NUEVA PROFORMA
 // ============================================================
 function NuevaProforma({ showToast }) {
-  const [cliente, setCliente] = useState({ nombre: "", ruc: "", direccion: "", telefono: "" });
+  const [cliente, setCliente] = useState({ nombre: "", ruc: "", direccion: "", telefono: "", solicitante: "" });
   const [meta, setMeta] = useState({
     numero: 130,
     fecha: new Date().toISOString().slice(0, 10),
@@ -255,6 +261,7 @@ const exportarPDF = async () => {
       cliente_nombre: cliente.nombre,
       cliente_ruc: cliente.ruc,
       cliente_direccion: cliente.direccion,
+	  solicitante: cliente.solicitante,
       condicion_pago: meta.condicion,
       validez_dias: meta.validez,
       items: items.filter((it) => it.descripcion),
@@ -282,17 +289,18 @@ const exportarPDF = async () => {
   };
 
   const guardar = async () => {
-    const payload = {
-      numero: meta.numero, cliente_nombre: cliente.nombre, cliente_ruc: cliente.ruc,
-      cliente_direccion: cliente.direccion, cliente_telefono: cliente.telefono,
-      condicion_pago: meta.condicion, validez_dias: Number(meta.validez), fecha: meta.fecha,
-      subtotal: baseImponible, igv, total, moneda: "SOLES",
-      items: items.filter((it) => it.descripcion).map((it) => ({
-        producto_id: it.producto_id, descripcion: it.descripcion,
-        cantidad: Number(it.cantidad), precio_unitario: Number(it.precio_unitario),
-        importe: Number(it.cantidad) * Number(it.precio_unitario),
-      })),
-    };
+	const payload = {
+	  numero: meta.numero, cliente_nombre: cliente.nombre, cliente_ruc: cliente.ruc,
+	  cliente_direccion: cliente.direccion, cliente_telefono: cliente.telefono,
+	  solicitante: cliente.solicitante,
+	  condicion_pago: meta.condicion, validez_dias: Number(meta.validez), fecha: meta.fecha,
+	  subtotal: baseImponible, igv, total, moneda: "SOLES",
+	  items: items.filter((it) => it.descripcion).map((it) => ({
+		producto_id: it.producto_id, descripcion: it.descripcion,
+		cantidad: Number(it.cantidad), precio_unitario: Number(it.precio_unitario),
+		importe: Number(it.cantidad) * Number(it.precio_unitario),
+	  })),
+	};
     if (!payload.cliente_nombre) { showToast("Ingresa el nombre del cliente"); return; }
     if (payload.items.length === 0) { showToast("Agrega al menos un producto"); return; }
     try {
@@ -324,12 +332,13 @@ const buscarClientePorNombre = async (texto) => {
 };
 
 const elegirCliente = (c) => {
-  setCliente({
+  setCliente((prev) => ({
     nombre: (c.nombre || "").toUpperCase(),
     ruc: c.ruc_dni || "",
     direccion: (c.direccion || "").toUpperCase(),
     telefono: c.telefono || "",
-  });
+    solicitante: prev.solicitante || "",
+  }));
   setOpenCliente(false);
 };
 
@@ -393,45 +402,66 @@ const buscarDocumento = async (numero) => {
 
   return (
     <main style={S.card}>
-      <section style={S.gridTop}>
-        <Field label="N° Proforma">
-          <input className="inp" type="number" value={meta.numero} onChange={(e) => setMeta({ ...meta, numero: e.target.value })} />
-        </Field>
-        <Field label="Fecha">
-          <input className="inp" type="date" value={meta.fecha} onChange={(e) => setMeta({ ...meta, fecha: e.target.value })} />
-        </Field>
-        <Field label="Condición de pago">
-          <select className="inp" value={meta.condicion} onChange={(e) => setMeta({ ...meta, condicion: e.target.value })}>
-            <option>CONTADO</option><option>CRÉDITO</option><option>TRANSFERENCIA</option>
-          </select>
-        </Field>
-        <Field label="Validez (días)">
-          <input className="inp" type="number" value={meta.validez} onChange={(e) => setMeta({ ...meta, validez: e.target.value })} />
-        </Field>
-      </section>
-
-      <section style={S.gridCli}>
-		<div style={{ position: "relative" }} ref={clienteBoxRef}>
-		  <Field label="Nombre / Razón social">
+		<section style={S.gridTop}>
+		  <div style={{ width: 110 }}>
+			<Field label="N° Proforma">
+			  <input className="inp" type="number" value={meta.numero} onChange={(e) => setMeta({ ...meta, numero: e.target.value })} />
+			</Field>
+		  </div>
+		  <div style={{ width: 160 }}>
+			<Field label="Fecha">
+			  <input className="inp" type="date" value={meta.fecha} onChange={(e) => setMeta({ ...meta, fecha: e.target.value })} />
+			</Field>
+		  </div>
+		  <div style={{ width: 150 }}>
+			<Field label="Condición de pago">
+			  <select className="inp" value={meta.condicion} onChange={(e) => setMeta({ ...meta, condicion: e.target.value })}>
+				<option>CONTADO</option><option>CRÉDITO</option><option>TRANSFERENCIA</option>
+			  </select>
+			</Field>
+		  </div>
+		  <div style={{ width: 100 }}>
+			<Field label="Validez (días)">
+			  <input className="inp" type="number" value={meta.validez} onChange={(e) => setMeta({ ...meta, validez: e.target.value })} />
+			</Field>
+		  </div>
+		  <div style={{ flex: 1, minWidth: 140 }}>
+			<Field label="Teléfono (WhatsApp)">
+			  <input className="inp" value={cliente.telefono} placeholder="9XXXXXXXX" onChange={(e) => setCliente({ ...cliente, telefono: e.target.value })} />
+			</Field>
+		  </div>
+		</section>
+		<section style={S.gridCli}>
+		  <div style={{ position: "relative" }} ref={clienteBoxRef}>
+			<Field label="Nombre / Razón social">
+			  <input
+				className="inp"
+				value={cliente.nombre}
+				placeholder="Ej. ESPIRILLA FOLLANE ELEUTERIA"
+				onChange={(e) => buscarClientePorNombre(e.target.value)}
+				onFocus={() => cliente.nombre && buscarClientePorNombre(cliente.nombre)}
+			  />
+			</Field>
+			{openCliente && sugCliente.length > 0 && (
+			  <div style={S.dropdown}>
+				{sugCliente.map((c) => (
+				  <div key={c.id} style={S.option} onMouseDown={() => elegirCliente(c)}>
+					<span style={{ fontWeight: 600 }}>{c.nombre}</span>
+					<span style={S.optMeta}>{c.ruc_dni || "sin RUC"}{c.direccion ? " · " + c.direccion : ""}</span>
+				  </div>
+				))}
+			  </div>
+			)}
+		  </div>
+		  <Field label="Solicitante">
 			<input
 			  className="inp"
-			  value={cliente.nombre}
-			  onChange={(e) => buscarClientePorNombre(e.target.value)}
-			  onFocus={() => cliente.nombre && buscarClientePorNombre(cliente.nombre)}
+			  value={cliente.solicitante}
+			  placeholder="Nombre de contacto"
+			  onChange={(e) => setCliente({ ...cliente, solicitante: e.target.value.toUpperCase() })}
 			/>
 		  </Field>
-		  {openCliente && sugCliente.length > 0 && (
-			<div style={S.dropdown}>
-			  {sugCliente.map((c) => (
-				<div key={c.id} style={S.option} onMouseDown={() => elegirCliente(c)}>
-				  <span style={{ fontWeight: 600 }}>{c.nombre}</span>
-				  <span style={S.optMeta}>{c.ruc_dni || "sin RUC"}{c.direccion ? " · " + c.direccion : ""}</span>
-				</div>
-			  ))}
-			</div>
-		  )}
-		</div>
-		<Field label="RUC / DNI">
+		  <Field label="RUC / DNI">
 			<input
 			  className="inp"
 			  value={cliente.ruc}
@@ -444,14 +474,15 @@ const buscarDocumento = async (numero) => {
 			  onKeyDown={(e) => { if (e.key === "Tab") buscarDocumento(cliente.ruc); }}
 			  onBlur={() => buscarDocumento(cliente.ruc)}
 			/>
-		</Field>
-        <Field label="Dirección">
-          <input className="inp" value={cliente.direccion} onChange={(e) => setCliente({ ...cliente, direccion: e.target.value.toUpperCase() })} />
-        </Field>
-        <Field label="Teléfono (WhatsApp)">
-          <input className="inp" value={cliente.telefono} placeholder="9XXXXXXXX" onChange={(e) => setCliente({ ...cliente, telefono: e.target.value })} />
-        </Field>
-      </section>
+		  </Field>
+		  <Field label="Dirección">
+			<input
+			  className="inp"
+			  value={cliente.direccion}
+			  onChange={(e) => setCliente({ ...cliente, direccion: e.target.value.toUpperCase() })}
+			/>
+		  </Field>
+		</section>
 
       <div style={S.tableWrap}>
         <div style={S.thead}>
@@ -826,8 +857,8 @@ const S = {
   nav: { display: "flex", gap: 8 },
   card: { maxWidth: 960, margin: "0 auto", background: "#fff", borderRadius: 14, boxShadow: "0 12px 40px rgba(0,0,0,.08)", padding: 26, border: "1px solid #e7e2d6" },
   h2: { fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, letterSpacing: 1, color: "#1b5e20", margin: "0 0 18px" },
-  gridTop: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 16 },
-  gridCli: { display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr", gap: 14, marginBottom: 22, paddingBottom: 18, borderBottom: "2px dashed #e0dacb" },
+  gridTop: { display: "flex", gap: 14, marginBottom: 15, flexWrap: "wrap" },
+  gridCli: { display: "grid", gridTemplateColumns: "1.8fr 1fr 111px 2.2fr", gap: 14, marginBottom: 22, paddingBottom: 18, borderBottom: "2px dashed #e0dacb" },
   field: { display: "flex", flexDirection: "column", gap: 5 },
   label: { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "#8a857a" },
   tableWrap: { marginBottom: 18 },

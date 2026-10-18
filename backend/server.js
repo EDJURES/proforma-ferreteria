@@ -278,5 +278,69 @@ app.get('/api/proformas/:id', async (req, res) => {
   }
 });
 
+// ---------- DASHBOARD ----------
+const HOY = "(NOW() AT TIME ZONE 'America/Lima')::date";   // evita desfases de zona horaria
+
+app.get('/api/dashboard/resumen', async (req, res) => {
+  try {
+    const [kpis, porMes, topClientes, topProductos, recientes] = await Promise.all([
+      db.query(`
+        SELECT
+          COUNT(*)::int AS total_proformas,
+          COALESCE(SUM(total), 0) AS monto_total,
+          COUNT(*) FILTER (WHERE date_trunc('month', fecha) = date_trunc('month', ${HOY}))::int AS proformas_mes,
+          COALESCE(SUM(total) FILTER (WHERE date_trunc('month', fecha) = date_trunc('month', ${HOY})), 0) AS monto_mes,
+          COUNT(*) FILTER (WHERE date_trunc('month', fecha) = date_trunc('month', (${HOY} - INTERVAL '1 month')::date))::int AS proformas_mes_anterior
+        FROM proformas`),
+      db.query(`
+        SELECT to_char(m.mes, 'YYYY-MM') AS mes,
+               COUNT(p.id)::int AS cantidad,
+               COALESCE(SUM(p.total), 0) AS monto
+        FROM generate_series(
+               date_trunc('month', ${HOY}) - INTERVAL '5 months',
+               date_trunc('month', ${HOY}),
+               INTERVAL '1 month') AS m(mes)
+        LEFT JOIN proformas p ON date_trunc('month', p.fecha) = m.mes
+        GROUP BY m.mes
+        ORDER BY m.mes`),
+      db.query(`
+        SELECT (ARRAY_AGG(cliente_nombre ORDER BY fecha DESC, id DESC))[1] AS nombre,
+               COUNT(*)::int AS proformas,
+               COALESCE(SUM(total), 0) AS monto
+        FROM proformas
+        GROUP BY COALESCE(NULLIF(TRIM(cliente_ruc), ''), cliente_nombre)
+        ORDER BY monto DESC
+        LIMIT 5`),
+      db.query(`
+        SELECT descripcion,
+               SUM(cantidad) AS unidades,
+               COUNT(DISTINCT proforma_id)::int AS proformas
+        FROM proforma_detalle
+        WHERE cantidad > 0
+        GROUP BY descripcion
+        ORDER BY SUM(cantidad) DESC
+        LIMIT 5`),
+      db.query(`
+        SELECT id, numero, fecha, cliente_nombre, total
+        FROM proformas
+        ORDER BY numero DESC
+        LIMIT 5`),
+    ]);
+
+    res.json({
+      kpis: kpis.rows[0],
+      porMes: porMes.rows,
+      topClientes: topClientes.rows,
+      topProductos: topProductos.rows,
+      recientes: recientes.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'No se pudo generar el resumen: ' + err.message });
+  }
+});
+
+
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`API escuchando en http://localhost:${PORT}`));

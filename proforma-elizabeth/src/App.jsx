@@ -71,17 +71,45 @@ async function generarPDFProforma(data) {
 	  doc.text("Jr. Lino Cornejo N°242 Stand 115, Lima", 14, 36);
 	  doc.text("Email: elenaespirilla.2505@gmail.com · Celular/YAPE: 955 546 747", 14, 39);
 
-	  doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
-	  doc.text("RUC: 10105765229", 155, 17);
-	  doc.text("PROFORMA", 155, 22);
-	  doc.setFontSize(10); doc.setFont("helvetica", "normal");
-	  doc.text(`N°: ${data.numero}`, 155, 28);
-	  doc.text(`Fecha: ${String(data.fecha).slice(0, 10)}`, 155, 33);
+	  
+	// ---------- Recuadro superior derecho: RUC / PROFORMA / N° ----------
+	const RUC_EMPRESA = "10105765229";
+	const MARGEN_DER = 14;                                   // igual al margen derecho de tu tabla
+	const pageW = doc.internal.pageSize.getWidth();
+	const bw = 50, rowH = 8.5, by = 11;                      // ancho, alto por fila, posición vertical
+	const bx = pageW - MARGEN_DER - bw;                     // borde derecho alineado con la tabla
+	const cx = bx + bw / 2;                                 // centro horizontal del recuadro
+
+	// 1) Franja gris de la fila del medio (se pinta primero, queda debajo del marco)
+	doc.setFillColor(238, 238, 238);
+	doc.rect(bx, by + rowH, bw, rowH, "F");
+
+	// 2) Marco con el mismo color y grosor de línea que la tabla de productos
+	doc.setDrawColor(200, 200, 200);
+	doc.setLineWidth(0.1);
+	doc.rect(bx, by, bw, rowH * 3);
+
+	// 3) Textos centrados
+	doc.setTextColor(0, 0, 0);
+	doc.setFont("helvetica", "normal");
+	doc.setFontSize(11);
+	doc.text(`RUC ${RUC_EMPRESA}`, cx, by + 5.9, { align: "center" });
+
+	doc.setFont("helvetica", "bold");
+	doc.setFontSize(13);
+	doc.text("PROFORMA", cx, by + rowH + 6, { align: "center" });
+
+	doc.setFont("helvetica", "normal");
+	doc.setFontSize(11);
+	doc.text(`N°: ${data.numero}`, cx, by + rowH * 2 + 5.9, { align: "center" });
+
+
 
 	  let y = 45; doc.setFontSize(9);
 	  doc.text(`Cliente: ${data.cliente_nombre || "-"}`, 14, y);
 	  doc.text(`RUC/DNI: ${data.cliente_ruc || "-"}`, 120, y); y += 5;
-	  doc.text(`Dirección: ${data.cliente_direccion || "-"}`, 14, y); y += 5;
+	  doc.text(`Dirección: ${data.cliente_direccion || "-"}`, 14, y);
+	  doc.text(`Fecha: ${String(data.fecha).slice(0, 10)}`, 120, y); y += 5; 
 		if (data.solicitante) {
 		  doc.setFont("helvetica", "bold");
 		  doc.text(`Solicitante: ${data.solicitante}`, 14, y);
@@ -760,6 +788,9 @@ function ModalDetalle({ data, onClose }) {
         </div>
         <div style={S.modalBody}>
           <p style={{ margin: "0 0 4px" }}><b>Cliente:</b> {data.cliente_nombre}</p>
+		  {data.solicitante && (
+			  <p style={{ margin: "0 0 4px" }}><b>Solicitante:</b> {data.solicitante}</p>
+		  )}
           <p style={{ margin: "0 0 4px" }}><b>Fecha:</b> {String(data.fecha).slice(0, 10)} · <b>Condición:</b> {data.condicion_pago}</p>
           <div style={{ ...S.thead, marginTop: 10, borderRadius: 8 }}>
             <div style={{ width: 50 }}>Cant.</div>

@@ -104,7 +104,6 @@ async function generarPDFProforma(data) {
 	doc.text(`N°: ${data.numero}`, cx, by + rowH * 2 + 5.9, { align: "center" });
 
 
-
 	  let y = 45; doc.setFontSize(9);
 	  doc.text(`Cliente: ${data.cliente_nombre || "-"}`, 14, y);
 	  doc.text(`RUC/DNI: ${data.cliente_ruc || "-"}`, 120, y); y += 5;
@@ -163,6 +162,25 @@ const IconMail = ({ size = 14 }) => (
   </svg>
 );
 
+const IconDashboard = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
+    <rect x="3" y="3" width="7" height="9" rx="1" />
+    <rect x="14" y="3" width="7" height="5" rx="1" />
+    <rect x="14" y="12" width="7" height="9" rx="1" />
+    <rect x="3" y="16" width="7" height="5" rx="1" />
+  </svg>
+);
+
+const IconDoc = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
+    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+    <path d="M14 3v5h5" />
+    <path d="M9 13h6M9 17h6" />
+  </svg>
+);
+
 const IconPhone = ({ size = 14 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -171,52 +189,97 @@ const IconPhone = ({ size = 14 }) => (
   </svg>
 );
 
+const IconPlus = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+    style={{ verticalAlign: "-2px", marginRight: 5 }}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+const IconList = ({ size = 15 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+    style={{ verticalAlign: "-2px", marginRight: 5 }}>
+    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+  </svg>
+);
+
 export default function App() {
-  const [vista, setVista] = useState("nueva"); // "nueva" | "historial"
-  const [toast, setToast] = useState("");
+  const [seccion, setSeccion] = useState("dashboard");   // "dashboard" | "proforma"
+  const [vista, setVista] = useState("nueva");           // "nueva" | "historial"
   const [resetKey, setResetKey] = useState(0);
+  const [toast, setToast] = useState("");
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(""), 2600);
   };
 
+  const irANueva = () => { setSeccion("proforma"); setVista("nueva"); setResetKey((k) => k + 1); };
+  const irAHistorial = () => { setSeccion("proforma"); setVista("historial"); };
+
   return (
-    <div style={S.page}>
+    <div style={S.shell} className="shell">
       <style>{CSS}</style>
 
-      <header style={S.header}>
-        <div>
-          <h1 style={S.logo}>COMERCIAL ELIZABETH</h1>
-          <p style={S.sub}>Ferretería y Herramientas · Jr. Lino Cornejo N°242 Stand 115, Lima</p>
-		  <p style={S.sub}>
-			<IconMail size={13} /> elenaespirilla.2505@gmail.com
-			&nbsp;·&nbsp;
-			<IconPhone size={13} /> Celular: 955 546 747
-		  </p>
+      <aside style={S.sidebar} className="sidebar">
+        <div style={S.sideBrand} className="sideBrand">
+          <div style={S.sideLogo}>CE</div>
+          <div style={{ fontSize: 12, lineHeight: 1.3, color: "#cfe5d1" }}>Comercial<br />Elizabeth</div>
         </div>
-        <nav style={S.nav}>
-          <button
-            className={"navBtn " + (vista === "nueva" ? "navOn" : "")}
-            /*onClick={() => setVista("nueva")}*/
-			onClick={() => { setVista("nueva"); setResetKey(k => k + 1); }}
-          >
-           ＋ Nueva Proforma
-          </button>
-          <button
-            className={"navBtn " + (vista === "historial" ? "navOn" : "")}
-            onClick={() => setVista("historial")}
-          >
-            📋 Proformas Emitidas
-          </button>
-        </nav>
-      </header>
+        <button className={"sideBtn " + (seccion === "dashboard" ? "sideOn" : "")} onClick={() => setSeccion("dashboard")}>
+          <IconDashboard /> Dashboard
+        </button>
+        <button className={"sideBtn " + (seccion === "proforma" ? "sideOn" : "")} onClick={() => setSeccion("proforma")}>
+          <IconDoc /> Proforma
+        </button>
+      </aside>
 
-      {vista === "nueva" ? (
-        <NuevaProforma key={resetKey} showToast={showToast} />
-      ) : (
-        <Historial showToast={showToast} />
-      )}
+      <div style={S.content}>
+        {/* Dashboard: se monta al entrar, así siempre trae datos frescos */}
+        {seccion === "dashboard" && (
+          <div style={S.page}>
+            <Dashboard onNueva={irANueva} onHistorial={irAHistorial} />
+          </div>
+        )}
+
+        {/* Proforma: queda montada y solo se oculta, para no perder lo que se esté escribiendo */}
+        <div style={{ display: seccion === "proforma" ? "block" : "none" }}>
+          <div style={S.page}>
+            <header style={S.header}>
+              <div>
+                <h1 style={S.logo}>COMERCIAL ELIZABETH</h1>
+                <p style={S.sub}>Ferretería y Herramientas · Jr. Lino Cornejo N°242 Stand 115, Lima</p>
+                <p style={S.sub}>
+                  <IconMail size={13} /> elenaespirilla.2505@gmail.com
+                  &nbsp;·&nbsp;
+                  <IconPhone size={13} /> Celular: 955 546 747
+                </p>
+              </div>
+              <nav style={S.nav}>
+                <button
+                  className={"navBtn " + (vista === "nueva" ? "navOn" : "")}
+                  onClick={() => { setVista("nueva"); setResetKey((k) => k + 1); }}
+                >
+                  <IconPlus size={15} /> Nueva Proforma
+                </button>
+                <button
+                  className={"navBtn " + (vista === "historial" ? "navOn" : "")}
+                  onClick={() => setVista("historial")}
+                >
+                  <IconList size={15} /> Proformas Emitidas
+                </button>
+              </nav>
+            </header>
+
+            {vista === "nueva" ? (
+              <NuevaProforma key={resetKey} showToast={showToast} />
+            ) : (
+              <Historial showToast={showToast} />
+            )}
+          </div>
+        </div>
+      </div>
 
       {toast && <div style={S.toast}>{toast}</div>}
     </div>
@@ -663,6 +726,163 @@ function ModalProductoNuevo({ onClose, onAgregar, showToast }) {
   );
 }
 
+// SE AGREGA PANEL DASHBOARD COMO PANTALLA PRINCIPAL
+// ============================================================
+//  DASHBOARD
+// ============================================================
+const num = (n) => Number(n || 0).toLocaleString("es-PE", { maximumFractionDigits: 2 });
+const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+function BarrasMes({ datos }) {
+  const max = Math.max(...datos.map((d) => Number(d.monto)), 1);
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 190 }}>
+      {datos.map((d, i) => {
+        const monto = Number(d.monto);
+        const alto = monto > 0 ? Math.max((monto / max) * 130, 6) : 2;
+        const actual = i === datos.length - 1;
+        return (
+          <div key={d.mes} title={`${d.cantidad} proformas`}
+            style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: actual ? 700 : 500, color: "#555" }}>
+              {monto > 0 ? num(monto) : ""}
+            </span>
+            <div style={{ width: "100%", maxWidth: 46, height: alto, background: actual ? "#1b5e20" : "#9cc3a0", borderRadius: "6px 6px 0 0" }} />
+            <span style={{ fontSize: 12, color: actual ? "#2a2a28" : "#777", fontWeight: actual ? 700 : 400 }}>
+              {MESES[Number(d.mes.split("-")[1]) - 1]}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const Kpi = ({ label, value, sub, subColor }) => (
+  <div style={D.kpi}>
+    <div style={D.kpiLabel}>{label}</div>
+    <div style={D.kpiValue}>{value}</div>
+    <div style={{ ...D.kpiSub, color: subColor || "#8a857a" }}>{sub}</div>
+  </div>
+);
+
+function Dashboard({ onNueva, onHistorial }) {
+  const [data, setData] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+
+  const cargar = async () => {
+    setCargando(true);
+    setError("");
+    try {
+      const r = await fetch(`${API_BASE}/dashboard/resumen`);
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || `Error ${r.status}`);
+      }
+      setData(await r.json());
+    } catch (e) {
+      setError("No se pudo cargar el resumen. " + e.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  useEffect(() => { cargar(); }, []);
+
+  const k = data?.kpis;
+  const dif = k ? k.proformas_mes - k.proformas_mes_anterior : 0;
+  const promedio = k && k.total_proformas > 0 ? Number(k.monto_total) / k.total_proformas : 0;
+  const subMes = dif > 0 ? `▲ ${dif} más que el mes anterior`
+               : dif < 0 ? `▼ ${-dif} menos que el mes anterior`
+               : "Igual que el mes anterior";
+
+  return (
+    <div style={{ maxWidth: 960, margin: "0 auto" }}>
+      <div style={D.head}>
+        <div>
+          <h2 style={{ ...S.h2, margin: 0 }}>Dashboard</h2>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6b6b66" }}>Resumen de las proformas emitidas</p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="navBtn" onClick={cargar}>↻ Actualizar</button>
+          <button className="navBtn navOn" onClick={onNueva}><IconPlus size={15} /> Nueva proforma</button>
+        </div>
+      </div>
+
+      {error && <div style={S.aviso}>{error}</div>}
+      {cargando && !data && <div style={S.vacio}>Cargando resumen…</div>}
+
+      {data && (
+        <>
+          <section style={D.kpis} className="dashKpis">
+            <Kpi label="Proformas del mes" value={k.proformas_mes} sub={subMes} subColor={dif >= 0 ? "#1b5e20" : "#b22222"} />
+            <Kpi label="Monto del mes" value={`S/ ${num(k.monto_mes)}`} sub="Monto proformado" />
+            <Kpi label="Total emitidas" value={k.total_proformas} sub="A la fecha" />
+            <Kpi label="Promedio" value={`S/ ${num(promedio)}`} sub="Por proforma" />
+          </section>
+
+          <section style={{ ...D.row, gridTemplateColumns: "minmax(0, 1.5fr) minmax(0, 1fr)" }} className="dashRow">
+            <div style={D.panel}>
+              <h3 style={D.panelTitle}>Monto proformado por mes</h3>
+              <BarrasMes datos={data.porMes} />
+            </div>
+            <div style={D.panel}>
+              <h3 style={D.panelTitle}>Clientes con más monto</h3>
+              {data.topClientes.length === 0 ? <div style={D.vacio}>Sin datos todavía.</div> :
+                data.topClientes.map((c, i) => (
+                  <div key={i} style={D.item}>
+                    <span style={D.rank}>{i + 1}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ ...D.ellipsis, fontSize: 13, fontWeight: 600 }}>{c.nombre}</div>
+                      <div style={{ fontSize: 12, color: "#8a857a" }}>{c.proformas} proformas</div>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>S/ {num(c.monto)}</span>
+                  </div>
+                ))}
+            </div>
+          </section>
+
+          <section style={{ ...D.row, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }} className="dashRow">
+            <div style={D.panel}>
+              <h3 style={D.panelTitle}>Productos más cotizados</h3>
+              {data.topProductos.length === 0 ? <div style={D.vacio}>Sin datos todavía.</div> :
+                data.topProductos.map((p, i) => (
+                  <div key={i} style={D.item}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ ...D.ellipsis, fontSize: 13 }}>{p.descripcion}</div>
+                      <div style={{ fontSize: 12, color: "#8a857a" }}>en {p.proformas} proformas</div>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{num(p.unidades)} und</span>
+                  </div>
+                ))}
+            </div>
+            <div style={D.panel}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h3 style={D.panelTitle}>Últimas proformas</h3>
+                <button className="btnVer" style={{ marginBottom: 12 }} onClick={onHistorial}>Ver todas →</button>
+              </div>
+              {data.recientes.length === 0 ? <div style={D.vacio}>Sin datos todavía.</div> :
+                data.recientes.map((p) => (
+                  <div key={p.id} style={D.item}>
+                    <span style={{ fontSize: 13, fontWeight: 700, width: 38 }}>{p.numero}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ ...D.ellipsis, fontSize: 13 }}>{p.cliente_nombre}</div>
+                      <div style={{ fontSize: 12, color: "#8a857a" }}>{String(p.fecha).slice(0, 10)}</div>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>S/ {num(p.total)}</span>
+                  </div>
+                ))}
+            </div>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+// FIN SE AGREGA PANEL DASHBOARD COMO PANTALLA PRINCIPAL
+
+
 // ============================================================
 //  VISTA: HISTORIAL DE PROFORMAS
 // ============================================================
@@ -918,6 +1138,27 @@ const S = {
   histHead: { display: "flex", gap: 10, padding: "11px 12px", background: "#1b5e20", color: "#fff", fontSize: 12, fontWeight: 700, textTransform: "uppercase" },
   histRow: { display: "flex", gap: 10, padding: "11px 12px", borderBottom: "1px solid #f0f0f0", fontSize: 14, alignItems: "center" },
   vacio: { padding: 30, textAlign: "center", color: "#999", fontSize: 14 },
+  shell: { display: "flex", minHeight: "100vh", background: "#f4f1ea" },
+	sidebar: { width: 210, flex: "none", background: "#1b5e20", color: "#fff", padding: "22px 14px", display: "flex", flexDirection: "column", gap: 6, position: "sticky", top: 0, height: "100vh", boxSizing: "border-box" },
+	sideBrand: { display: "flex", alignItems: "center", gap: 10, padding: "0 6px 20px", borderBottom: "1px solid rgba(255,255,255,.2)", marginBottom: 10 },
+	sideLogo: { width: 38, height: 38, borderRadius: 9, background: "#b22222", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 1 },
+	content: { flex: 1, minWidth: 0 },
+};
+
+const D = {
+  head: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, gap: 12, flexWrap: "wrap" },
+  kpis: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 14, marginBottom: 14 },
+  kpi: { background: "#fff", border: "1px solid #e7e2d6", borderRadius: 14, padding: "16px 18px", boxShadow: "0 6px 20px rgba(0,0,0,.05)" },
+  kpiLabel: { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "#8a857a" },
+  kpiValue: { fontSize: 24, fontWeight: 800, margin: "6px 0 2px" },
+  kpiSub: { fontSize: 12 },
+  row: { display: "grid", gap: 14, marginBottom: 14 },
+  panel: { background: "#fff", border: "1px solid #e7e2d6", borderRadius: 14, padding: 20, boxShadow: "0 6px 20px rgba(0,0,0,.05)" },
+  panelTitle: { fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "#1b5e20", margin: "0 0 12px" },
+  item: { display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: "1px solid #f0ece2" },
+  rank: { width: 24, height: 24, borderRadius: "50%", background: "#e3f2e4", color: "#1b5e20", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" },
+  ellipsis: { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  vacio: { padding: "18px 0", textAlign: "center", color: "#999", fontSize: 13 },
 };
 
 const CSS = `
@@ -949,4 +1190,19 @@ const CSS = `
 .navOn { background:#1b5e20; color:#fff; border-color:#1b5e20; }
 .option:hover { background:#f0f7f0; }
 @media (max-width:680px){ .gridTop, .gridCli { grid-template-columns:1fr 1fr !important; } }
+
+.sideBtn { display:flex; align-items:center; gap:10px; width:100%; padding:12px 14px; border:none; border-radius:10px; background:transparent; color:#cfe5d1; font-family:inherit; font-size:15px; font-weight:600; cursor:pointer; text-align:left; transition:background .15s, color .15s; }
+.sideBtn:hover { background:rgba(255,255,255,.10); color:#fff; }
+.sideOn, .sideOn:hover { background:#fff; color:#1b5e20; }
+@media (max-width:900px) {
+  .dashKpis { grid-template-columns:repeat(2, minmax(0,1fr)) !important; }
+  .dashRow { grid-template-columns:1fr !important; }
+}
+@media (max-width:820px) {
+  .shell { flex-direction:column !important; }
+  .sidebar { width:100% !important; height:auto !important; position:static !important; flex-direction:row !important; align-items:center; padding:10px 12px !important; overflow-x:auto; }
+  .sideBrand { display:none !important; }
+  .sideBtn { width:auto; white-space:nowrap; }
+}
+
 `;

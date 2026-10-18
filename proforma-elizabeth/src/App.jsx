@@ -1035,7 +1035,7 @@ function ModalDetalle({ data, onClose }) {
   );
 }
 
-// ---------- Fila de producto con autocompletar ----------
+// ---------- Fila de producto con autocompletar ---------
 function ItemRow({ item, onChange, onRemove }) {
   const [open, setOpen] = useState(false);
   const [sug, setSug] = useState([]);

@@ -204,11 +204,101 @@ const IconList = ({ size = 15 }) => (
   </svg>
 );
 
+const IconProductos = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
+    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+  </svg>
+);
+
+const IconPagos = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
+    <rect x="2" y="5" width="20" height="14" rx="2" />
+    <path d="M2 10h20M6 15h4" />
+  </svg>
+);
+
+const IconStock = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
+    <path d="M21 8l-9-5-9 5v8l9 5 9-5z" />
+    <path d="M3 8l9 5 9-5M12 13v8" />
+  </svg>
+);
+
+// ---------- Menú lateral ----------
+const MENU = [
+  { titulo: "EMISIÓN", items: [
+    { id: "dashboard", label: "Dashboard", Icon: IconDashboard },
+    { id: "proforma", label: "Proforma", Icon: IconDoc },
+  ]},
+  { titulo: "GESTIÓN", items: [
+    { id: "productos", label: "Productos", Icon: IconProductos },
+    { id: "pagos", label: "Pagos", Icon: IconPagos },
+    { id: "stock", label: "Ingreso Stock", Icon: IconStock },
+  ]},
+];
+
+// Módulos que aún no tienen pantalla
+const PENDIENTES = { productos: "Productos", pagos: "Pagos", stock: "Ingreso Stock" };
+
+function ModuloPendiente({ titulo }) {
+  return (
+    <main style={S.card}>
+      <h2 style={S.h2}>{titulo}</h2>
+      <p style={{ margin: 0, fontSize: 14, color: "#6b6b66" }}>Este módulo se habilitará próximamente.</p>
+    </main>
+  );
+}
+
+// ---------- Versículos (Reina-Valera 1909, ortografía actualizada) ----------
+const VERSICULOS = [
+  { texto: "Jehová es mi pastor; nada me faltará.", ref: "Salmos 23:1" },
+  { texto: "Pon asimismo tu delicia en Jehová, y él te dará las peticiones de tu corazón.", ref: "Salmos 37:4" },
+  { texto: "Encomienda a Jehová tu camino, y espera en él; y él hará.", ref: "Salmos 37:5" },
+  { texto: "Dios es nuestro amparo y fortaleza, pronto auxilio en las tribulaciones.", ref: "Salmos 46:1" },
+  { texto: "Echa sobre Jehová tu carga, y él te sustentará; no dejará para siempre caído al justo.", ref: "Salmos 55:22" },
+  { texto: "Este es el día que hizo Jehová; nos gozaremos y alegrarémonos en él.", ref: "Salmos 118:24" },
+  { texto: "Lámpara es a mis pies tu palabra, y lumbrera a mi camino.", ref: "Salmos 119:105" },
+  { texto: "Mi socorro viene de Jehová, que hizo los cielos y la tierra.", ref: "Salmos 121:2" },
+  { texto: "Fíate de Jehová de todo tu corazón, y no estribes en tu prudencia.", ref: "Proverbios 3:5" },
+  { texto: "La blanda respuesta quita la ira; mas la palabra áspera hace subir el furor.", ref: "Proverbios 15:1" },
+  { texto: "Encomienda a Jehová tus obras, y tus pensamientos serán afirmados.", ref: "Proverbios 16:3" },
+  { texto: "Torre fuerte es el nombre de Jehová; a él correrá el justo, y será levantado.", ref: "Proverbios 18:10" },
+  { texto: "Todo tiene su tiempo, y todo lo que se quiere debajo del cielo tiene su hora.", ref: "Eclesiastés 3:1" },
+  { texto: "Tú guardarás en completa paz a aquel cuyo pensamiento en ti persevera; porque en ti ha confiado.", ref: "Isaías 26:3" },
+  { texto: "Mas buscad primeramente el reino de Dios, y su justicia; y todas estas cosas os serán añadidas.", ref: "Mateo 6:33" },
+  { texto: "Pedid, y se os dará; buscad, y hallaréis; llamad, y se os abrirá.", ref: "Mateo 7:7" },
+  { texto: "Venid a mí todos los que estáis trabajados y cargados, que yo os haré descansar.", ref: "Mateo 11:28" },
+  { texto: "Porque ninguna cosa será imposible para Dios.", ref: "Lucas 1:37" },
+  { texto: "Todo lo puedo en Cristo que me fortalece.", ref: "Filipenses 4:13" },
+  { texto: "Todas vuestras cosas sean hechas con amor.", ref: "1 Corintios 16:14" },
+];
+
+// Elige un versículo distinto al del ingreso anterior
+function elegirVersiculo() {
+  let ultimo = -1;
+  try {
+    const v = localStorage.getItem("ultimoVersiculo");
+    ultimo = v === null ? -1 : Number(v);
+  } catch { /* sin almacenamiento: se elige al azar igual */ }
+
+  let i;
+  do { i = Math.floor(Math.random() * VERSICULOS.length); }
+  while (i === ultimo && VERSICULOS.length > 1);
+
+  try { localStorage.setItem("ultimoVersiculo", String(i)); } catch { /* ignorar */ }
+  return VERSICULOS[i];
+}
+
+
 export default function App() {
-  const [seccion, setSeccion] = useState("dashboard");   // "dashboard" | "proforma"
-  const [vista, setVista] = useState("nueva");           // "nueva" | "historial"
+  const [seccion, setSeccion] = useState("dashboard");
+  const [vista, setVista] = useState("nueva");
   const [resetKey, setResetKey] = useState(0);
   const [toast, setToast] = useState("");
+  const [versiculo] = useState(elegirVersiculo);
 
   const showToast = (msg) => {
     setToast(msg);
@@ -227,16 +317,31 @@ export default function App() {
           <div style={S.sideLogo}>CE</div>
           <div style={{ fontSize: 12, lineHeight: 1.3, color: "#cfe5d1" }}>Comercial<br />Elizabeth</div>
         </div>
-        <button className={"sideBtn " + (seccion === "dashboard" ? "sideOn" : "")} onClick={() => setSeccion("dashboard")}>
-          <IconDashboard /> Dashboard
-        </button>
-        <button className={"sideBtn " + (seccion === "proforma" ? "sideOn" : "")} onClick={() => setSeccion("proforma")}>
-          <IconDoc /> Proforma
-        </button>
+
+        <nav style={S.sideNav} className="sideNav">
+          {MENU.map((grupo) => (
+            <div key={grupo.titulo} className="sideSection" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <div style={S.sideTitle} className="sideTitle">{grupo.titulo}</div>
+              {grupo.items.map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  className={"sideBtn " + (seccion === id ? "sideOn" : "")}
+                  onClick={() => setSeccion(id)}
+                >
+                  <Icon /> {label}
+                </button>
+              ))}
+            </div>
+          ))}
+        </nav>
+
+        <div style={S.sideVerse} className="sideVerse">
+          <div style={{ fontStyle: "italic" }}>“{versiculo.texto}”</div>
+          <div style={{ marginTop: 6, fontWeight: 700 }}>{versiculo.ref}</div>
+        </div>
       </aside>
 
       <div style={S.content}>
-        {/* Dashboard: se monta al entrar, así siempre trae datos frescos */}
         {seccion === "dashboard" && (
           <div style={S.page}>
             <Dashboard onNueva={irANueva} onHistorial={irAHistorial} />
@@ -279,13 +384,18 @@ export default function App() {
             )}
           </div>
         </div>
+
+        {PENDIENTES[seccion] && (
+          <div style={S.page}>
+            <ModuloPendiente titulo={PENDIENTES[seccion]} />
+          </div>
+        )}
       </div>
 
       {toast && <div style={S.toast}>{toast}</div>}
     </div>
   );
 }
-
 // ============================================================
 //  VISTA: NUEVA PROFORMA
 // ============================================================
@@ -1139,7 +1249,10 @@ const S = {
   histRow: { display: "flex", gap: 10, padding: "11px 12px", borderBottom: "1px solid #f0f0f0", fontSize: 14, alignItems: "center" },
   vacio: { padding: 30, textAlign: "center", color: "#999", fontSize: 14 },
   shell: { display: "flex", minHeight: "100vh", background: "#f4f1ea" },
-	sidebar: { width: 210, flex: "none", background: "#1b5e20", color: "#fff", padding: "22px 14px", display: "flex", flexDirection: "column", gap: 6, position: "sticky", top: 0, height: "100vh", boxSizing: "border-box" },
+	sidebar: { width: 210, flex: "none", background: "#1b5e20", color: "#fff", padding: "22px 14px 16px", display: "flex", flexDirection: "column", position: "sticky", top: 0, height: "100vh", boxSizing: "border-box" },
+    sideNav: { flex: 1, display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", minHeight: 0 },
+    sideTitle: { fontSize: 11, fontWeight: 700, letterSpacing: 0.8, color: "#9fc7a3", padding: "16px 12px 6px" },
+    sideVerse: { borderTop: "1px solid rgba(255,255,255,.2)", paddingTop: 14, marginTop: 10, fontSize: 12.5, lineHeight: 1.45, color: "#dcefdd" },
 	sideBrand: { display: "flex", alignItems: "center", gap: 10, padding: "0 6px 20px", borderBottom: "1px solid rgba(255,255,255,.2)", marginBottom: 10 },
 	sideLogo: { width: 38, height: 38, borderRadius: 9, background: "#b22222", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, letterSpacing: 1 },
 	content: { flex: 1, minWidth: 0 },
@@ -1203,6 +1316,9 @@ const CSS = `
   .sidebar { width:100% !important; height:auto !important; position:static !important; flex-direction:row !important; align-items:center; padding:10px 12px !important; overflow-x:auto; }
   .sideBrand { display:none !important; }
   .sideBtn { width:auto; white-space:nowrap; }
+  .sideNav { flex-direction:row !important; flex:none !important; overflow-y:visible !important; gap:6px !important; }
+  .sideSection { display:contents !important; }
+  .sideTitle, .sideVerse { display:none !important; }
 }
 
 `;
